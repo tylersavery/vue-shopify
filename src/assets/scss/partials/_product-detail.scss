@@ -32,12 +32,21 @@
                 cursor: default;
             }
 
+            
+
         }
     }
 
     ul.product-variants {
         list-style: none;
         padding: 0;
+
+        li {
+            &.sold-out {
+                pointer-events: none;
+                opacity: 0.25;
+            }
+        }
     }
 
     .product-price {

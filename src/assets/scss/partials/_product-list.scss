@@ -9,6 +9,11 @@
     .product {
         cursor: pointer;
 
+        &.sold-out {
+            pointer-events: none;
+            opacity: .5;
+        }
+
         .product-image {
             display: block;
             img {

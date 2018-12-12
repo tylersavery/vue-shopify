@@ -16,7 +16,7 @@
             <h3 class="product-title" v-if="product.title">{{product.title}}</h3>
             <p class="product-description" v-if="product.description">{{product.description}}</p>
             <ul class="product-variants" v-if="product.variants.length > 1">
-                <li v-if="selectedVariant" v-for="variant in product.variants" v-on:click="selectVariant(variant, $event)" class="btn" v-bind:class="{ 'active': selectedVariant.id == variant.id }">
+                <li v-if="selectedVariant" v-for="variant in product.variants" v-on:click="selectVariant(variant, $event)" class="btn" v-bind:class="{ 'active': selectedVariant.id == variant.id, 'sold-out': !variant.availableForSale }">
                     {{variant.title}}
                 </li>
             </ul>

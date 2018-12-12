@@ -1,12 +1,14 @@
 import axios from 'axios';
 import GraphSql from './GraphSQL'
-import config from '../../config'
 
 export default class ShopifyClient {
     constructor(shopifyDomain, shopifyToken) {
+
         this.shopifyDomain = shopifyDomain;
         this.shopifyToken = shopifyToken;
+
         this.graphSql = new GraphSql()
+        
     }
 
     query(gsqlData, successCallback, errorCallback) {
@@ -42,6 +44,8 @@ export default class ShopifyClient {
         let query = this.graphSql.cartQuery(checkoutId)
         this.query(query, responseSuccess => {
 
+            console.log('success', responseSuccess)
+
             let lineItems = responseSuccess.data.data.node.lineItems.edges;
 
             let normalizedLineItems = [];
@@ -49,16 +53,20 @@ export default class ShopifyClient {
             let totalPrice = 0;
             for(let l of lineItems){
 
+                console.log("lineitem:", l)
+
                 let subtotal = parseFloat(l.node.variant.price) * parseInt(l.node.quantity)
+
+                let image = l.node.variant.image.src
 
                 let lineItem = {
                     id: l.node.id,
                     variantId: l.node.variant.id,
                     title: l.node.title,
                     quantity: l.node.quantity,
-                    image: l.node.variant.image.src,
+                    image: image,
                     price: this._formatCurrency(l.node.variant.price),
-                    variantTitle: l.node.variant.title,
+                    variantTitle: this._shortenVariantTitle(l.node.variant.title),
                     description: l.node.description,
                     totalPrice: this._formatCurrency(subtotal)
                 }
@@ -102,26 +110,31 @@ export default class ShopifyClient {
 
     _normalizeProduct(p){
         let images = []
+      
         for(let img of p.node.images.edges){
             images.push(img.node.src)
         }
-
+    
         let variants = []
         for(let v of p.node.variants.edges) {
             let variant = {
                 id: v.node.id,
                 image: v.node.image.src,
                 price: v.node.price,
-                title: v.node.title
+                title: this._shortenVariantTitle(v.node.title),
+                availableForSale: v.node.availableForSale
             }
             variants.push(variant)
         }
+
+        let price = p.price ? p.price : variants[0].price
+        price = price.replace('.00', '')
 
         let product = {
             id: p.node.id,
             description: p.node.description != "" ? p.node.description : null,
             title: p.node.title,
-            price: p.price ? p.price : variants[0].price,
+            price: price,
             images: images,
             selectedImage: images[0],
             variants: variants,
@@ -135,6 +148,24 @@ export default class ShopifyClient {
         return parseFloat(num).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
     }
 
+    _shortenVariantTitle(title) {
+        title = title.toUpperCase()
+        switch(title) {
+            case "SMALL":
+                return "S"
+            case "MEDIUM":
+                return "M"
+            case "LARGE":
+                return "L"
+            case "X-LARGE":
+                return "XL"
+            case "XX-LARGE":
+                return "XXL"
+        }
+
+        return title
+    }
+
     allProducts(successCallback, errorCallback) {
         let query = this.graphSql.allProductsQuery();
         this.query(query, responseSuccess => {
@@ -142,9 +173,8 @@ export default class ShopifyClient {
             let normalizedProducts = [];
             for(let p of products) {
                 let normalizedProduct = this._normalizeProduct(p)
-                if(p.availableForSale || config.showUnavailableProducts){
-                    normalizedProducts.push(normalizedProduct)
-                }
+                normalizedProducts.push(normalizedProduct)
+                
             }
             successCallback(normalizedProducts)
         }, responseError => {
@@ -157,14 +187,12 @@ export default class ShopifyClient {
         let query = this.graphSql.productsFromCollectionQuery(collectionHandle);
 
         this.query(query, responseSuccess => {
-            console.log(responseSuccess)
             let products = responseSuccess.data.data.shop.collectionByHandle.products.edges;
             let normalizedProducts = [];
             for(let p of products) {
+                
                 let normalizedProduct = this._normalizeProduct(p)
-                if(p.availableForSale || config.showUnavailableProducts){
-                    normalizedProducts.push(normalizedProduct)
-                }
+                normalizedProducts.push(normalizedProduct)
             }
             successCallback(normalizedProducts)
         }, responseError => {
@@ -177,6 +205,7 @@ export default class ShopifyClient {
     productDetails(productId, successCallback, errorCallback) {
         let query = this.graphSql.productDetailsQuery(productId)
         this.query(query, responseSuccess => {
+            console.log("PRODUCT DETAIL", responseSuccess)
             let normalizedProduct = this._normalizeProduct(responseSuccess.data.data);
             successCallback(normalizedProduct)
         }, responseError => {
